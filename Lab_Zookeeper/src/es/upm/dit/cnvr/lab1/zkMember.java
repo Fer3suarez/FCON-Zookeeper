@@ -145,8 +145,7 @@ public class zkMember implements Watcher{
 		try {
 			List<String> lista = zk.getChildren(rootMembers, false);
 			Collections.sort(lista);
-			int i = lista.indexOf(myId.substring(myId.lastIndexOf('/')+1));
-			if(i!=0) {
+			if(lista.indexOf(myId.substring(myId.lastIndexOf('/')+1)) != 0) {
 				pathLider = rootMembers + "/" + lista.get(0);
 				System.out.println("El lider es: " + lista.get(0));
 				zk.exists(pathLider, watcherMember);
