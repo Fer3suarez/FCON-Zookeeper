@@ -68,7 +68,7 @@ public class zkMember implements Watcher{
 			try {
 				// Create a folder, if it is not created
 				String response = new String();
-				Stat s = zk.exists(rootMembers, watcherMember); //this);
+				Stat s = zk.exists(rootMembers, false); //this);
 				if (s == null) {
 					// Created the znode, if it is not created.
 					response = zk.create(rootMembers, new byte[0], 
@@ -82,9 +82,10 @@ public class zkMember implements Watcher{
 
 				myId = myId.replace(rootMembers + "/", "");
 
-				List<String> list = zk.getChildren(rootMembers, watcherMember, s); //this, s);
+				List<String> list = zk.getChildren(rootMembers, false, s); //this, s);
 				System.out.println("Created znode nember id:"+ myId );
 				printListMembers(list);
+				//esLider(1);
 			} catch (KeeperException e) {
 				System.out.println("The session with Zookeeper failes. Closing");
 				return;
@@ -118,12 +119,12 @@ public class zkMember implements Watcher{
 		}
 	};
 	
-	private Watcher  watcherLocker = new Watcher() { //Watcher para el cerrojo
+	private Watcher  watcherLocker = new Watcher() { //Watcher para el cerrojo distribuido
 		public void process(WatchedEvent event) {
 			System.out.println("------------------Watcher Locker------------------\n");		
 			try {
 				System.out.println("        Update!!");
-				List<String> list = zk.getChildren(rootMembers,  watcherLocker); //this);
+				List<String> list = zk.getChildren(pathLock,  watcherLocker); //this);
 				printListMembers(list);
 				esLider(1);
 			} catch (Exception e) {
@@ -136,7 +137,7 @@ public class zkMember implements Watcher{
 	public void process(WatchedEvent event) {
 		try {
 			System.out.println("Unexpected invocated this method. Process of the object");
-			List<String> list = zk.getChildren(rootMembers, watcherMember); //this);
+			List<String> list = zk.getChildren(rootMembers, watcherLocker); //this);
 			printListMembers(list);
 		} catch (Exception e) {
 			System.out.println("Unexpected exception. Process of the object");
@@ -155,38 +156,39 @@ public class zkMember implements Watcher{
 	private String pathLider;
 	private static String pathLock = "/locknode";
 	private static int count = 0;
-	private Integer mutex = -1;
+	private Integer mutex = -1; //Para garantizar la exclusión mutua
 	
 	private void esLider(int valor) {
 		try {
-			List<String> lista = zk.getChildren(pathLock, watcherMember);
+			List<String> lista = zk.getChildren(pathLock, false);
 			Collections.sort(lista);
 			pathLider = pathLock + "/" + lista.get(0); // path del lider en el cerrojo
 			
-			Stat s = zk.exists(pathLock, watcherMember);
-			byte[] b = zk.getData(pathLock, watcherMember, s);
+			Stat s = zk.exists(pathLock, false);
+			byte[] b = zk.getData(pathLock, false, s);
 			int valorContador = (ByteBuffer.wrap(b)).getInt(); //Obtenemos el ultimo valor del contador
 			
-			if(lista.indexOf(myId.substring(myId.lastIndexOf('/')+1)) != 0) {
+			if(lista.indexOf(myId.substring(myId.lastIndexOf('/')+1)) == 0) {
+				System.out.println("------SOY EL LIDER-----");
+				
+				valorContador = valorContador+valor;
+				count = valorContador;
+				s = zk.exists(pathLider, false);
+				byte[] b2 = ByteBuffer.allocate(4).putInt(valorContador).array();
+				zk.setData(pathLock, b2, s.getVersion());
+				System.out.println("El contador vale: "+ valorContador);
+								
+				s = zk.exists(pathLider, false);
+				zk.delete(pathLider, s.getVersion());
+				System.out.println("El contador ha aumentado y el antiguo lider se va a eliminar");
+				notify();
+			} else {
 				System.out.println("El lider es: " + lista.get(0));
 				System.out.println("Tengo que esperar para ser el lider...");
 				synchronized(mutex) {
 					zk.exists(pathLider, watcherLocker);
 					mutex.wait();
 				}
-			} else {
-				System.out.println("Soy el lider");
-				count = valorContador+valor;
-				s = zk.exists(pathLider, watcherMember);
-				byte[] b2 = ByteBuffer.allocate(4).putInt(valorContador).array();
-				zk.setData(pathLock, b2, s.getVersion());
-				System.out.println("El contador vale: "+ valorContador);
-				
-				System.out.println("El contador ha aumentado y el lider va a dejar de ser: "+ myId);
-				s = zk.exists(pathLider, watcherMember);
-				System.out.println("Se va a borrar el lider");
-				zk.delete(pathLider, s.getVersion());
-				notify();
 			}
 		} catch (Exception e) {
 			// TODO: handle exception
@@ -197,14 +199,14 @@ public class zkMember implements Watcher{
 		if(zk != null) {
 			try {
 				// Create a folder, if it is not created
-				String response = new String();
-				Stat s = zk.exists(rootMembers, watcherMember); //this);
+				//String response = new String();
+				Stat s = zk.exists(pathLock, false); //this);
 				if (s == null) {
 					// Created the znode, if it is not created.
 					byte[] b = ByteBuffer.allocate(4).putInt(0).array(); // Se crea un nodo lock con un contador a 0
-					response = zk.create(rootMembers, b, 
+					zk.create(pathLock, b, 
 							Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-					System.out.println(response);
+					//System.out.println(response);
 				}
 
 				// Create a znode for registering as member and get my id
@@ -213,7 +215,8 @@ public class zkMember implements Watcher{
 
 				myId = myId.replace(pathLock + "/", "");
 
-				System.out.println("Created znode nember id:"+ myId );
+				System.out.println("Created znode lock id:"+ myId );
+				
 				esLider(valor);
 			} catch (KeeperException e) {
 				System.out.println("The session with Zookeeper failes. Closing");
@@ -229,9 +232,10 @@ public class zkMember implements Watcher{
 		Thread thread = new Thread() {
 			public void run() {
 				for (int i = 0; i < 100; i++) {
+					System.out.println("------COMIENZA--------");
 					System.out.println("Valor del contador: " + count);
 					zk.addCounterValue(1);
-					System.out.println("Valor actualizado: " + count);
+					System.out.println("------FINALIZA--------");
 					try {
 						Thread.sleep(100); 			
 					} catch (Exception e) {
