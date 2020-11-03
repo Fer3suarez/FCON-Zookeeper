@@ -243,7 +243,6 @@ public class zkMember implements Watcher{
 						// TODO: handle exception
 					}
 				}
-				System.out.println("Contador final: " + count);
 				return;
 			}
 		};
