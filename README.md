@@ -7,7 +7,12 @@ Lo primero que se debe hacer es arrancar un ensemble Zookeeper, para ello se deb
 ./zkServer.sh start ~/zookeeper/standalone_zk.cfg
 ```
 Se supone que en directorio home, hay creada una carpeta llamada zookeeper, en la que dentro está el fichero de configuración standalone_zk.cfg.
-Una vez arrancado el ensemble, se deben configurar las variables de entorno para la ejecución del programa.
+
+Una vez arrancado el ensemble, se deben configurar las variables de entorno para la ejecución del programa. Esas variables de entorno se deberán guardar al final del todo del fichero .bashrc. Para acceder a este fichero, desde $home ejecutamos el sigueinte comando:
+```
+gedit ~/.bashrc
+```
+Siendo gedit, una herramienta para abrir y editar ficheros de texto.
 
 - Configurar la variable de entorno CLASSPATH. Este variable permite al programa Java a buscar las bibliotecas necesarias de los programas que se van a ejecutar:
 
