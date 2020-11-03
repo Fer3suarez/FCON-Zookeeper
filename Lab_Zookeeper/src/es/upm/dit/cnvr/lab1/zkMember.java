@@ -228,13 +228,13 @@ public class zkMember implements Watcher{
 	}
 	
 	public static void main(String[] args) {
-		zkMember zk = new zkMember();
+		zkMember counter = new zkMember();
 		Thread thread = new Thread() {
 			public void run() {
 				for (int i = 0; i < 100; i++) {
 					System.out.println("*************COMIENZO************");
 					System.out.println("Valor del contador: " + count);
-					zk.addCounterValue(1);
+					counter.addCounterValue(1);
 					System.out.println("**************FINAL************");
 					System.out.println("---------------------------------------------------------");
 					try {
