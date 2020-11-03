@@ -119,12 +119,12 @@ public class zkMember implements Watcher{
 		}
 	};
 	
-	private Watcher  watcherLocker = new Watcher() { //Watcher para el cerrojo distribuido
+	private Watcher  watcherLock = new Watcher() { //Watcher para el cerrojo distribuido
 		public void process(WatchedEvent event) {
 			System.out.println("------------------Watcher Locker------------------\n");		
 			try {
 				System.out.println("        Update!!");
-				List<String> list = zk.getChildren(pathLock,  watcherLocker); //this);
+				List<String> list = zk.getChildren(pathLock,  watcherLock); //this);
 				printListMembers(list);
 				esLider(1);
 			} catch (Exception e) {
@@ -137,7 +137,7 @@ public class zkMember implements Watcher{
 	public void process(WatchedEvent event) {
 		try {
 			System.out.println("Unexpected invocated this method. Process of the object");
-			List<String> list = zk.getChildren(rootMembers, watcherLocker); //this);
+			List<String> list = zk.getChildren(rootMembers, watcherLock); //this);
 			printListMembers(list);
 		} catch (Exception e) {
 			System.out.println("Unexpected exception. Process of the object");
@@ -156,27 +156,28 @@ public class zkMember implements Watcher{
 	private String pathLider;
 	private static String pathLock = "/locknode";
 	private static int count = 0;
-	private Integer mutex = -1; //Para garantizar la exclusión mutua
+	private Integer excMut = -1; //Para garantizar la exclusión mutua
 	
 	private void esLider(int valor) {
 		try {
 			List<String> lista = zk.getChildren(pathLock, false);
-			Collections.sort(lista);
-			pathLider = pathLock + "/" + lista.get(0); // path del lider en el cerrojo
+			//Collections.sort(lista);
+			pathLider = pathLock + "/" + lista.get(0); // path del lider en el nodo del cerrojo
 			
 			Stat s = zk.exists(pathLock, false);
 			byte[] b = zk.getData(pathLock, false, s);
-			int valorContador = (ByteBuffer.wrap(b)).getInt(); //Obtenemos el ultimo valor del contador
+			int valorContador = (ByteBuffer.wrap(b)).getInt(); //Obtenemos el ultimo valor del contador, que nos permite actualizar el contador
+			int pos = lista.indexOf(myId.substring(myId.lastIndexOf('/')+1));
 			
-			if(lista.indexOf(myId.substring(myId.lastIndexOf('/')+1)) == 0) {
+			if(pos == 0) {
 				System.out.println("------SOY EL LIDER-----");
-				
+				valorContador = count;
 				valorContador = valorContador+valor;
-				count = valorContador;
+				count = valorContador; //actualizamos contador
 				s = zk.exists(pathLider, false);
 				byte[] b2 = ByteBuffer.allocate(4).putInt(valorContador).array();
+				System.out.println("El contador vale: "+ valorContador + " y la version es: " + s.getVersion());
 				zk.setData(pathLock, b2, s.getVersion());
-				System.out.println("El contador vale: "+ valorContador);
 								
 				s = zk.exists(pathLider, false);
 				zk.delete(pathLider, s.getVersion());
@@ -184,10 +185,9 @@ public class zkMember implements Watcher{
 				notify();
 			} else {
 				System.out.println("El lider es: " + lista.get(0));
-				System.out.println("Tengo que esperar para ser el lider...");
-				synchronized(mutex) {
-					zk.exists(pathLider, watcherLocker);
-					mutex.wait();
+				synchronized(excMut) {
+					zk.exists(pathLider, watcherLock);
+					//excMut.wait();
 				}
 			}
 		} catch (Exception e) {
@@ -232,10 +232,11 @@ public class zkMember implements Watcher{
 		Thread thread = new Thread() {
 			public void run() {
 				for (int i = 0; i < 100; i++) {
-					System.out.println("------COMIENZA--------");
+					System.out.println("*************COMIENZO************");
 					System.out.println("Valor del contador: " + count);
 					zk.addCounterValue(1);
-					System.out.println("------FINALIZA--------");
+					System.out.println("**************FINAL************");
+					System.out.println("---------------------------------------------------------");
 					try {
 						Thread.sleep(100); 			
 					} catch (Exception e) {
