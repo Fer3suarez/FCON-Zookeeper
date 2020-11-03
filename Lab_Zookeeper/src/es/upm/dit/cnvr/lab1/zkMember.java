@@ -161,7 +161,6 @@ public class zkMember implements Watcher{
 	private void esLider(int valor) {
 		try {
 			List<String> lista = zk.getChildren(pathLock, false);
-			//Collections.sort(lista);
 			pathLider = pathLock + "/" + lista.get(0); // path del lider en el nodo del cerrojo
 			
 			Stat s = zk.exists(pathLock, false);
@@ -212,11 +211,10 @@ public class zkMember implements Watcher{
 				// Create a znode for registering as member and get my id
 				myId = zk.create(pathLock + "/host-", new byte[0], 
 						Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-
 				myId = myId.replace(pathLock + "/", "");
 
 				System.out.println("Created znode lock id:"+ myId );
-				
+	
 				esLider(valor);
 			} catch (KeeperException e) {
 				System.out.println("The session with Zookeeper failes. Closing");
